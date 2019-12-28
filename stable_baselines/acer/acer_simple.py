@@ -1,4 +1,5 @@
 import time
+import warnings
 
 import numpy as np
 import tensorflow as tf
@@ -74,7 +75,7 @@ class ACER(ActorCriticRLModel):
             Use `n_cpu_tf_sess` instead.
 
     :param q_coef: (float) The weight for the loss on the Q value
-    :param ent_coef: (float) The weight for the entropic loss
+    :param ent_coef: (float) The weight for the entropy loss
     :param max_grad_norm: (float) The clipping value for the maximum gradient
     :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
     :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
@@ -389,13 +390,13 @@ class ACER(ActorCriticRLModel):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.reward_ph))
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
                     tf.summary.scalar('advantage', tf.reduce_mean(adv))
-                    tf.summary.scalar('action_probabilty', tf.reduce_mean(self.mu_ph))
+                    tf.summary.scalar('action_probability', tf.reduce_mean(self.mu_ph))
 
                     if self.full_tensorboard_log:
                         tf.summary.histogram('rewards', self.reward_ph)
                         tf.summary.histogram('learning_rate', self.learning_rate)
                         tf.summary.histogram('advantage', adv)
-                        tf.summary.histogram('action_probabilty', self.mu_ph)
+                        tf.summary.histogram('action_probability', self.mu_ph)
                         if tf_util.is_image(self.observation_space):
                             tf.summary.image('observation', train_model.obs_ph)
                         else:
@@ -538,7 +539,9 @@ class ACER(ActorCriticRLModel):
                         logger.record_tabular(name, float(val))
                     logger.dump_tabular()
 
-                if self.replay_ratio > 0 and buffer.has_atleast(self.replay_start):
+                if (self.replay_ratio > 0 and
+                    buffer is not None and
+                    buffer.has_atleast(self.replay_start)):
                     samples_number = np.random.poisson(self.replay_ratio)
                     for _ in range(samples_number):
                         # get obs, actions, rewards, mus, dones from buffer.
@@ -635,7 +638,7 @@ class _Runner(AbstractEnvRunner):
         """
         Run a step leaning of the model
 
-        :return: ([float], [float], [float], [float], [float], [bool], [float])
+        :return: ([float], [float], [int64], [float], [float], [bool], [float])
                  encoded observation, observations, actions, rewards, mus, dones, masks
         """
         enc_obs = [self.obs]
@@ -663,7 +666,7 @@ class _Runner(AbstractEnvRunner):
 
         enc_obs = np.asarray(enc_obs, dtype=self.obs_dtype).swapaxes(1, 0)
         mb_obs = np.asarray(mb_obs, dtype=self.obs_dtype).swapaxes(1, 0)
-        mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
+        mb_actions = np.asarray(mb_actions, dtype=np.int64).swapaxes(1, 0)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         mb_mus = np.asarray(mb_mus, dtype=np.float32).swapaxes(1, 0)
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)

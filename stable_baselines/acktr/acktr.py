@@ -30,7 +30,7 @@ class ACKTR(ActorCriticRLModel):
             Use `n_cpu_tf_sess` instead.
 
     :param n_steps: (int) The number of steps to run for each environment
-    :param ent_coef: (float) The weight for the entropic loss
+    :param ent_coef: (float) The weight for the entropy loss
     :param vf_coef: (float) The weight for the loss on the value function
     :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
     :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
@@ -337,12 +337,14 @@ class ACKTR(ActorCriticRLModel):
             ep_info_buf = deque(maxlen=100)
 
             for update in range(1, total_timesteps // self.n_batch + 1):
+                # pytype:disable=bad-unpacking
                 # true_reward is the reward without discount
                 if isinstance(runner, PPO2Runner):
                     # We are using GAE
                     obs, returns, masks, actions, values, _, states, ep_infos, true_reward = runner.run()
                 else:
                     obs, states, returns, masks, actions, values, ep_infos, true_reward = runner.run()
+                # pytype:enable=bad-unpacking
 
                 ep_info_buf.extend(ep_infos)
                 policy_loss, value_loss, policy_entropy = self._train_step(obs, states, returns, masks, actions, values,
